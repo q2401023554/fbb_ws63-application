@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>桌面智能气象站 · 上位机看板</title>
+<style>
+  :root{
+    --bg:#f5f6f8; --card:#ffffff; --line:#e6e8eb; --text:#1f2328; --muted:#6b7280;
+    --blue:#1f6feb; --green:#0f9d58; --red:#d93025; --amber:#b26a00;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;
+    background:var(--bg); color:var(--text); padding:20px;
+  }
+  .wrap{max-width:1120px;margin:0 auto}
+  header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:18px}
+  h1{font-size:20px;font-weight:600;letter-spacing:.5px}
+  h1 small{font-size:12px;color:var(--muted);font-weight:400;margin-left:8px}
+  .conn{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .dot{width:8px;height:8px;border-radius:50%;background:#bbb;display:inline-block}
+  .dot.on{background:var(--green);box-shadow:0 0 0 3px rgba(15,157,88,.15)}
+  .dot.off{background:var(--red)}
+  .dot.warn{background:var(--amber);box-shadow:0 0 0 3px rgba(178,106,0,.15)}
+  .dot.blink{animation:pulse 1s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  .badge{font-size:12px;color:var(--muted)}
+  input,button{font-family:inherit;font-size:13px}
+  input[type=text]{
+    padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;
+    width:240px;color:var(--text);
+  }
+  button{
+    padding:7px 14px;border-radius:8px;border:1px solid var(--line);background:#fff;
+    color:var(--text);cursor:pointer;transition:.15s;
+  }
+  button:hover{border-color:#c9ced4;background:#fafbfc}
+  button.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+  button.primary:hover{background:#1659c4}
+  button:disabled{opacity:.5;cursor:not-allowed}
+
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  .card .label{font-size:12px;color:var(--muted);margin-bottom:8px;display:flex;justify-content:space-between}
+  .card .value{font-size:34px;font-weight:600;line-height:1.1;font-variant-numeric:tabular-nums}
+  .card .value .unit{font-size:14px;color:var(--muted);font-weight:400;margin-left:3px}
+  .card.local{border-top:3px solid var(--blue)}
+  .card.net{border-top:3px solid var(--amber)}
+  .tag{font-size:11px;padding:1px 7px;border-radius:20px;background:#eef1f5;color:var(--muted)}
+
+  .row{display:grid;grid-template-columns:1.6fr 1fr;gap:14px;margin-bottom:14px}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  .panel h2{font-size:13px;font-weight:600;color:var(--muted);margin-bottom:12px;letter-spacing:.3px}
+
+  .kv{display:grid;grid-template-columns:repeat(2,1fr);gap:10px 18px}
+  .kv div{display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px dashed var(--line)}
+  .kv span:first-child{color:var(--muted)}
+  .kv span:last-child{font-variant-numeric:tabular-nums;font-weight:500}
+  .ok{color:var(--green)} .bad{color:var(--red)} .warn{color:var(--amber)} .muted{color:var(--muted)}
+
+  canvas{width:100%;height:190px;display:block}
+  .legend{display:flex;gap:16px;font-size:12px;color:var(--muted);margin-top:8px}
+  .legend i{display:inline-block;width:10px;height:2px;vertical-align:middle;margin-right:5px}
+
+  .cmd{display:flex;gap:8px;flex-wrap:wrap}
+  .log{font-family:ui-monospace,Consolas,monospace;font-size:12px;color:var(--muted);
+       max-height:150px;overflow:auto;line-height:1.7}
+  .log div{border-bottom:1px solid #f2f4f6;padding:2px 0;word-break:break-all}
+  .hint{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.6}
+
+  /* 连不上 Broker 时的醒目提示条 */
+  .banner{
+    display:none;margin-bottom:14px;padding:14px 18px;border-radius:12px;
+    background:#fff8e6;border:1px solid #f0c36d;color:#7a4d00;font-size:13px;line-height:1.7;
+  }
+  .banner.show{display:block}
+  .banner b{display:block;margin-bottom:4px;font-size:13.5px;color:#9a6700}
+  .banner code{background:#fff;padding:1px 6px;border-radius:4px;border:1px solid #f0c36d;font-size:12px}
+  .banner .fix{margin-top:8px;padding-top:8px;border-top:1px dashed #f0c36d}
+  @media (max-width:900px){
+    .grid{grid-template-columns:repeat(2,1fr)}
+    .row{grid-template-columns:1fr}
+    input[type=text]{width:100%}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>桌面智能气象站 <small>上位机看板 · MQTT over WebSocket</small></h1>
+    <div class="conn">
+      <span class="dot" id="dot"></span>
+      <span class="badge" id="connText">正在连接…</span>
+      <input type="text" id="broker" spellcheck="false" title="Broker 地址（留空或点“自动”会按当前电脑的 IP 自动填）">
+      <button class="primary" id="btnConn">重连</button>
+      <button id="btnAuto" title="按当前电脑的 IP 自动填地址">自动</button>
+      <button id="btnDisc" disabled>断开</button>
+    </div>
+  </header>
+
+  <div class="banner" id="banner">
+    <b>连不上 Broker，页面收不到数据</b>
+    <span id="bannerText"></span>
+  </div>
+
+  <div class="grid">
+    <div class="card local">
+      <div class="label"><span>本地温度</span><span class="tag">DHT11</span></div>
+      <div class="value" id="temp">--<span class="unit">℃</span></div>
+    </div>
+    <div class="card local">
+      <div class="label"><span>本地湿度</span><span class="tag">DHT11</span></div>
+      <div class="value" id="humi">--<span class="unit">%RH</span></div>
+    </div>
+    <div class="card net">
+      <div class="label"><span>网络温度</span><span class="tag">Open-Meteo</span></div>
+      <div class="value" id="netTemp">--<span class="unit">℃</span></div>
+    </div>
+    <div class="card net">
+      <div class="label"><span>网络湿度</span><span class="tag">Open-Meteo</span></div>
+      <div class="value" id="netHumi">--<span class="unit">%RH</span></div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="panel">
+      <h2>温度趋势（本地 vs 网络）</h2>
+      <canvas id="chart"></canvas>
+      <div class="legend">
+        <span><i style="background:#1f6feb"></i>本地温度</span>
+        <span><i style="background:#b26a00"></i>网络温度</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>运行状态</h2>
+      <div class="kv">
+        <div><span>温差（本地−网络）</span><span id="diffTemp">--</span></div>
+        <div><span>湿度差</span><span id="diffHumi">--</span></div>
+        <div><span>网络天气</span><span id="netOk">--</span></div>
+        <div><span>设备 IP</span><span id="ip">--</span></div>
+        <div><span>上报次数</span><span id="count">0</span></div>
+        <div><span>最后更新</span><span id="lastTime">--</span></div>
+      </div>
+      <h2 style="margin-top:16px">远程指令</h2>
+      <div class="cmd">
+        <button id="btnQuery" disabled>立即上报 (QUERY)</button>
+        <button id="btnNet" disabled>刷新天气 (NET)</button>
+      </div>
+      <p class="hint">指令通过 MQTT 发布到 <code>subTopic</code>，板子收到后立即执行。</p>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>消息日志</h2>
+    <div class="log" id="log"><div>等待数据…</div></div>
+  </div>
+
+  <p class="hint">
+    打开页面即自动连接，不用点任何按钮。Broker 地址默认按<b>当前电脑的 IP</b> 自动推导
+    （双击本地文件打开时用 127.0.0.1），换电脑、换网络都不用改。
+    前提：电脑上 EMQX 已启动（1883 / 8083 端口），板子已上电并连上同一个 Wi-Fi。
+    <br><b>请双击 <code>打开看板.bat</code> 或直接双击 <code>index.html</code> 用浏览器打开</b>——
+    在 IDE 预览窗口里看时，预览会拦截 WebSocket，页面会一直显示“重连中”。
+  </p>
+</div>
+
+<script src="mqtt.min.js"></script>
+<script>
+(function () {
+  var TOPIC_PUB = 'pubTopic';   // 板子 -> 本页面
+  var TOPIC_SUB = 'subTopic';   // 本页面 -> 板子
+
+  var IDLE_WARN_SEC = 20;       // 连上但多久没收到数据就提示（秒）
+
+  var client = null;
+  var manualStop = false;       // 用户主动点了“断开”后不再自动重连
+  var reportCount = 0;
+  var failCount = 0;            // 连续连接失败次数（成功一次就归零）
+  var everConnected = false;    // 本次会话是否成功连上过（区分“从没连上”和“中途掉线”）
+  var lastDataAt = 0;           // 最后一次收到板子数据的时间戳
+  var lastLogKey = '';          // 日志去重，避免重连时刷屏
+  var lastLogAt = 0;
+  var series = { local: [], net: [] };
+
+  // 用 file:// 直接打开还是 http:// 加载（预览容器走 http://，会拦长连接）
+  var isFile = (location.protocol === 'file:');
+
+  var $ = function (id) { return document.getElementById(id); };
+  var dot = $('dot'), connText = $('connText'), logBox = $('log');
+  var btnConn = $('btnConn'), btnDisc = $('btnDisc'), btnAuto = $('btnAuto');
+  var btnQuery = $('btnQuery'), btnNet = $('btnNet');
+  var brokerInput = $('broker');
+
+  /**
+   * 按当前页面的主机名推导 Broker 地址。
+   *  - 用 http://<ip>:端口 打开时：hostname 就是那台机器的 IP，直接用它
+   *  - 直接双击本地文件打开（file://）时：hostname 为空，退化为 127.0.0.1（EMQX 就在本机）
+   * 这样换电脑、换网络、IP 变了都不用改地址。
+   */
+  function autoBroker() {
+    var host = location.hostname || '127.0.0.1';
+    return 'ws://' + host + ':8083/mqtt';
+  }
+
+  // 地址优先级：URL 参数 ?broker=xxx > 上次手动保存的 > 自动推导
+  var qsBroker = null;
+  try {
+    qsBroker = new URLSearchParams(location.search).get('broker');
+  } catch (e) { /* 老浏览器没有 URLSearchParams，忽略 */ }
+  brokerInput.value = qsBroker || localStorage.getItem('ws63_broker') || autoBroker();
+
+  function addLog(text) {
+    var d = document.createElement('div');
+    var t = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+    d.textContent = '[' + t + '] ' + text;
+    if (logBox.firstChild && logBox.firstChild.textContent === '等待数据…') {
+      logBox.innerHTML = '';
+    }
+    logBox.insertBefore(d, logBox.firstChild);
+    while (logBox.childNodes.length > 40) { logBox.removeChild(logBox.lastChild); }
+  }
+
+  /* 同样的消息 3 秒内只打一条，重连风暴时不刷屏 */
+  function addLogOnce(text) {
+    var now = Date.now();
+    if (text === lastLogKey && now - lastLogAt < 3000) { return; }
+    lastLogKey = text; lastLogAt = now;
+    addLog(text);
+  }
+
+  /* 连不上 Broker 时给出可操作的提示，而不是让人对着“重连中…”干等 */
+  function showBanner(show) {
+    var el = $('banner');
+    if (!show) { el.className = 'banner'; return; }
+
+    var items = [];
+    /* 通过 http:// 加载（预览容器就是这种）时，容器多半会拦掉到 8083 的长连接 */
+    if (!isFile) {
+      items.push('<b style="display:inline">最可能的原因：你是在 IDE / 预览窗口里打开的。</b>' +
+                 '预览容器会拦截到 8083 端口的长连接（WebSocket），所以永远连不上。<br>' +
+                 '解决办法：关掉预览，去 dashboard 文件夹里<b style="display:inline">双击 <code>打开看板.bat</code></b>' +
+                 '（或直接双击 <code>index.html</code>），用真正的浏览器打开。');
+    }
+    items.push('电脑上 EMQX 是否已启动：命令行执行 <code>emqx start</code>');
+    items.push('8083 端口是否在监听：<code>netstat -an | findstr 8083</code>');
+    items.push('地址里的 IP 是不是这台电脑当前的 IP，不对就点上面的「自动」按钮');
+
+    var list = '';
+    for (var i = 0; i < items.length; i++) {
+      list += '<div style="margin-top:6px">' + (items.length > 1 ? (i + 1) + '. ' : '') + items[i] + '</div>';
+    }
+
+    $('bannerText').innerHTML = '当前地址 <code>' + brokerInput.value + '</code>，已连续重试 ' +
+      failCount + ' 次仍连不上。' + list;
+    el.className = 'banner show';
+  }
+
+  function setState(state, text) {
+    var map = {
+      connecting: 'dot blink',
+      connected: 'dot on',
+      idle: 'dot',
+      error: 'dot off',
+      waiting: 'dot warn blink',
+      connected_idle: 'dot warn'
+    };
+    dot.className = map[state] || 'dot';
+    connText.textContent = text;
+    var on = (state === 'connected' || state === 'connected_idle' || state === 'waiting');
+    btnConn.disabled = on;
+    btnDisc.disabled = !on;
+    btnQuery.disabled = !on;
+    btnNet.disabled = !on;
+  }
+
+  function connect() {
+    var url = brokerInput.value.trim() || autoBroker();
+    brokerInput.value = url;
+    if (!url) { return; }
+
+    // 已经有连接实例（含正在重连的），先彻底断掉再重建，避免多个 client 并存
+    if (client) {
+      try { client.end(true); } catch (e) { /* 忽略 */ }
+      client = null;
+    }
+
+    manualStop = false;
+    failCount = 0;
+    showBanner(false);
+    setState('connecting', '正在连接…');
+    addLog('正在连接 ' + url);
+
+    client = mqtt.connect(url, {
+      clientId: 'ws63-dashboard-' + Math.random().toString(16).slice(2, 8),
+      clean: true,
+      connectTimeout: 5000,
+      reconnectPeriod: 3000,      // 断线后每 3 秒自动重试
+      keepalive: 30
+    });
+
+    client.on('connect', function () {
+      lastDataAt = 0;
+      failCount = 0;
+      everConnected = true;
+      showBanner(false);
+      setState('waiting', '已连接 · 等待数据');
+      client.subscribe(TOPIC_PUB, { qos: 1 });
+      addLog('已连接，订阅 ' + TOPIC_PUB);
+    });
+
+    client.on('reconnect', function () {
+      setState('connecting', '重连中…');
+      addLogOnce('连接断开，正在自动重连…');
+    });
+
+    client.on('error', function (e) {
+      var msg = (e && e.message) ? e.message : String(e);
+      setState('error', '连接失败 · 自动重试中');
+      addLogOnce('连接错误：' + msg);
+    });
+
+    client.on('close', function () {
+      if (manualStop) { setState('idle', '已断开'); return; }
+      failCount++;
+      setState('connecting', '连接断开 · 重连中…');
+      /* 从没成功连上过、又连续失败 3 次 → 基本可以断定是打开方式或 Broker 的问题 */
+      if (!everConnected && failCount >= 3) {
+        showBanner(true);
+      }
+    });
+
+    client.on('message', function (topic, payload) { onMessage(payload.toString()); });
+  }
+
+  function disconnect() {
+    manualStop = true;
+    if (client) {
+      try { client.end(true); } catch (e) { /* 忽略 */ }
+      client = null;
+    }
+    setState('idle', '已断开');
+    addLog('已手动断开（点“重连”可恢复）');
+  }
+
+  function onMessage(text) {
+    var d;
+    try { d = JSON.parse(text); } catch (e) { addLog('非 JSON 消息：' + text); return; }
+
+    lastDataAt = Date.now();
+    setState('connected', '已连接');
+
+    if (d.dev) { addLog('收到上报：temp=' + d.temp + ' humi=' + d.humi + ' netTemp=' + d.netTemp); }
+
+    $('temp').innerHTML = d.temp + '<span class="unit">℃</span>';
+    $('humi').innerHTML = d.humi + '<span class="unit">%RH</span>';
+
+    var netOk = d.netOk === 1;
+    $('netTemp').innerHTML = netOk ? d.netTemp + '<span class="unit">℃</span>' : '--<span class="unit">℃</span>';
+    $('netHumi').innerHTML = netOk ? d.netHumi + '<span class="unit">%RH</span>' : '--<span class="unit">%RH</span>';
+
+    // 偏差值：网络数据无效（-999）时不能显示，否则出现 1028℃ 这种荒谬数字
+    var dt = d.diffTemp, dh = d.diffHumi;
+    var elT = $('diffTemp'), elH = $('diffHumi');
+    var diffValid = netOk && dt !== -999 && dh !== -999 && dt !== undefined && dh !== undefined;
+
+    if (diffValid) {
+      elT.textContent = (dt > 0 ? '+' : '') + dt + ' ℃';
+      elT.className = dt >= 0 ? 'warn' : 'ok';
+      elH.textContent = (dh > 0 ? '+' : '') + dh + ' %';
+      elH.className = dh >= 0 ? 'warn' : 'ok';
+    } else {
+      elT.textContent = '--';
+      elT.className = 'muted';
+      elH.textContent = '--';
+      elH.className = 'muted';
+    }
+
+    var elNet = $('netOk');
+    elNet.textContent = netOk ? '正常' : '获取失败';
+    elNet.className = netOk ? 'ok' : 'bad';
+
+    $('ip').textContent = d.ip || '--';
+    reportCount++;
+    $('count').textContent = reportCount;
+    $('lastTime').textContent = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+
+    series.local.push(d.temp);
+    series.net.push(netOk ? d.netTemp : null);
+    if (series.local.length > 40) { series.local.shift(); series.net.shift(); }
+    draw();
+  }
+
+  // ---- 数据超时监测：连上了但板子不发数据，要明确提示 ----
+  setInterval(function () {
+    if (!client || !client.connected || manualStop) { return; }
+    if (!lastDataAt) {
+      setState('waiting', '已连接 · 等待数据');
+      return;
+    }
+    var idle = Math.round((Date.now() - lastDataAt) / 1000);
+    if (idle >= IDLE_WARN_SEC) {
+      setState('connected_idle', '已连接 · ' + idle + ' 秒无数据');
+    }
+  }, 3000);
+
+  // 浏览器切回前台时，如果连接已死就立刻重连（后台标签页会被节流）
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden || manualStop) { return; }
+    if (client && !client.connected) {
+      try { client.reconnect(); } catch (e) { /* 忽略 */ }
+    }
+  });
+
+  // ---- 曲线绘制（原生 canvas，无第三方库）----
+  var canvas = $('chart');
+  function draw() {
+    var dpr = window.devicePixelRatio || 1;
+    var w = canvas.clientWidth, h = canvas.clientHeight;
+    canvas.width = w * dpr; canvas.height = h * dpr;
+    var ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+
+    var pad = 26;
+    var vals = series.local.concat(series.net.filter(function (v) { return v !== null; }));
+    if (vals.length === 0) {
+      ctx.fillStyle = '#9aa1a9'; ctx.font = '13px sans-serif';
+      ctx.fillText('等待数据…', pad, h / 2);
+      return;
+    }
+    var min = Math.min.apply(null, vals), max = Math.max.apply(null, vals);
+    if (max - min < 4) { var mid = (max + min) / 2; min = mid - 2; max = mid + 2; }
+    var span = max - min;
+    var n = series.local.length;
+
+    // 网格
+    ctx.strokeStyle = '#eef0f3'; ctx.lineWidth = 1;
+    for (var i = 0; i <= 4; i++) {
+      var y = pad + (h - pad * 2) * i / 4;
+      ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(w - 8, y); ctx.stroke();
+      ctx.fillStyle = '#9aa1a9'; ctx.font = '11px sans-serif';
+      var lab = (max - span * i / 4).toFixed(1);
+      ctx.fillText(lab, 2, y + 4);
+    }
+
+    function pathOf(arr, color) {
+      ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = 2;
+      var started = false;
+      for (var i = 0; i < arr.length; i++) {
+        if (arr[i] === null || arr[i] === undefined) { started = false; continue; }
+        var x = pad + (w - pad - 8) * (n <= 1 ? 0 : i / (n - 1));
+        var y = pad + (h - pad * 2) * (1 - (arr[i] - min) / span);
+        if (!started) { ctx.moveTo(x, y); started = true; } else { ctx.lineTo(x, y); }
+      }
+      ctx.stroke();
+    }
+    pathOf(series.local, '#1f6feb');
+    pathOf(series.net, '#b26a00');
+  }
+
+  // ---- 事件绑定 ----
+  btnConn.addEventListener('click', connect);
+
+  btnAuto.addEventListener('click', function () {
+    brokerInput.value = autoBroker();
+    localStorage.removeItem('ws63_broker');
+    addLog('已按当前 IP 自动填地址：' + brokerInput.value);
+    connect();
+  });
+
+  btnDisc.addEventListener('click', disconnect);
+
+  // 手动改地址才记住，避免把自动推导的旧 IP 存下来
+  brokerInput.addEventListener('change', function () {
+    localStorage.setItem('ws63_broker', brokerInput.value.trim());
+  });
+
+  btnQuery.addEventListener('click', function () {
+    if (client && client.connected) { client.publish(TOPIC_SUB, 'QUERY', { qos: 1 }); addLog('已发送 QUERY'); }
+  });
+  btnNet.addEventListener('click', function () {
+    if (client && client.connected) { client.publish(TOPIC_SUB, 'NET', { qos: 1 }); addLog('已发送 NET'); }
+  });
+  window.addEventListener('resize', draw);
+
+  draw();
+
+  // ---- 打开页面就自动连接（延迟 200ms 让 mqtt.min.js 完成初始化）----
+  setTimeout(connect, 200);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+#===============================================================================
+# @brief    Kconfig file.
+# Copyright (c) HiSilicon (Shanghai) Technologies Co., Ltd. 2023-2023. All rights reserved.
+#===============================================================================
+
+choice
+    prompt "BLE Sample"
+
+config SAMPLE_SUPPORT_BLE_SPEED_SERVER_SAMPLE
+    bool "Support BLE Throughput Server Sample."
+
+if SAMPLE_SUPPORT_BLE_SPEED_SERVER_SAMPLE
+osource "application/samples/bt/ble/ble_speed_server/Kconfig"
+endif
+
+config SAMPLE_SUPPORT_BLE_SPEED_CLIENT_SAMPLE
+    bool "Support BLE Throughput Client Sample"
+
+config SAMPLE_SUPPORT_BLE_CFG_SAMPLE
+    bool "Support BLE WIFI CFG Sample"
+
+endchoice

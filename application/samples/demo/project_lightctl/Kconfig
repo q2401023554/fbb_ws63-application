@@ -1,0 +1,125 @@
+#===============================================================================
+# @brief    Kconfig file — Wi-Fi 远程灯控系统（期末项目）
+# Copyright (c) HiSilicon (Shanghai) Technologies Co., Ltd. 2024-2024. All rights reserved.
+#
+# 注意：本文件只放「参数项」。
+# 开关符号 SAMPLE_SUPPORT_PROJECT_LIGHTCTL 定义在父级 application/samples/demo/Kconfig，
+# 若在这里再定义一次会形成依赖自循环。
+#
+# 硬件：共阴 4 针 RGB 灯模块（R/G/B/公共阴极接 GND），公共阴极接 GND，
+#       引脚输出高电平点亮，因此驱动按「高电平占空比 = 亮度」计算。
+#===============================================================================
+
+config LIGHTCTL_LED_R_PIN
+    int
+    prompt "RGB red channel pin (board silkscreen Pxx == GPIO number)."
+    default 10
+    help
+        GPIO driving the red anode of the common-cathode RGB LED.
+        It must be a pin that can be multiplexed to PWM2 (see docs/zh-CN/software/IO复用关系.md):
+            PWM2 -> P2 / P10
+
+        Board header pins: P0 P2 P5 P6 P7 P8 P9 P10 P12 P13 P14
+        Avoid: UART0T / UART0R (console)
+
+config LIGHTCTL_LED_G_PIN
+    int
+    prompt "RGB green channel pin."
+    default 8
+    help
+        Must be a pin that can be multiplexed to PWM0: PWM0 -> P0 / P8.
+        Default P8 (header pin, no conflict with the other devices).
+
+config LIGHTCTL_LED_B_PIN
+    int
+    prompt "RGB blue channel pin."
+    default 5
+    help
+        Must be a pin that can be multiplexed to PWM5: PWM5 -> P5 only.
+        Default P5 (SPI pin, unused in this project).
+
+config LIGHTCTL_LED_R_CH
+    int
+    prompt "RGB red PWM channel (0-7)."
+    range 0 7
+    default 2
+    help
+        PWM channel bound to LIGHTCTL_LED_R_PIN by hardware.
+        P10 -> PWM2, so keep channel 2 when the pin is P10.
+
+config LIGHTCTL_LED_G_CH
+    int
+    prompt "RGB green PWM channel (0-7)."
+    range 0 7
+    default 0
+    help
+        P8 -> PWM0, so keep channel 0 when the pin is P8.
+
+config LIGHTCTL_LED_B_CH
+    int
+    prompt "RGB blue PWM channel (0-7)."
+    range 0 7
+    default 5
+    help
+        P5 -> PWM5, so keep channel 5 when the pin is P5.
+
+config LIGHTCTL_LED_GROUP
+    int
+    prompt "PWM group id used by the three RGB channels."
+    range 0 5
+    default 0
+    help
+        The three channels are put in the same group so that they start
+        together with identical phase; otherwise they drift apart and the
+        light flickers while dimming.
+
+config LIGHTCTL_LED_FREQ_HZ
+    int
+    prompt "PWM dimming frequency in Hz."
+    range 100 20000
+    default 1000
+    help
+        The WS63 PWM working clock is 40MHz, so the period register value is
+        40000000 / this value. 1kHz or above is flicker-free to the eye.
+
+config LIGHTCTL_LIGHT_ADC_CHANNEL
+    int
+    prompt "Photoresistor ADC channel (0-5)."
+    range 0 5
+    default 5
+    help
+        The 3-pin photoresistor module has no digital output, so its AO must be
+        sampled through ADC. The channel is bound to a FIXED pin by the WS63 HAL:
+            CH0 -> P7   CH1 -> P8   CH2 -> P9
+            CH3 -> P10  CH4 -> P11 (not routed out)  CH5 -> P12
+        Default 5 means AO is wired to P12.
+
+config LIGHTCTL_TM1637_CLK_PIN
+    int
+    prompt "TM1637 clock (CLK) pin."
+    default 14
+    help
+        Two-wire serial clock of the 4-digit display. Default P14.
+
+config LIGHTCTL_TM1637_DIO_PIN
+    int
+    prompt "TM1637 data (DIO) pin."
+    default 13
+    help
+        Two-wire serial data of the 4-digit display (bidirectional). Default P13.
+
+config LIGHTCTL_TM1637_SEL_LOW_PIN
+    int
+    prompt "Display selector pin that must be driven LOW (board specific)."
+    default 2
+    help
+        This BOSSAY baseboard shares one display channel between the 7-segment
+        display and the 8x8 dot matrix. GPIOn = 0 combined with
+        LIGHTCTL_TM1637_SEL_HIGH_PIN = 1 selects the 7-segment display.
+
+config LIGHTCTL_TM1637_SEL_HIGH_PIN
+    int
+    prompt "Display selector pin that must be driven HIGH (board specific)."
+    default 9
+    help
+        See LIGHTCTL_TM1637_SEL_LOW_PIN. Default P9.

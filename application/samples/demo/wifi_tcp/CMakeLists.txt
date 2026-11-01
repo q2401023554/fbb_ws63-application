@@ -1,0 +1,12 @@
+#===============================================================================
+# @brief    cmake file
+# Copyright (c) HiSilicon (Shanghai) Technologies Co., Ltd. 2023-2023. All rights reserved.
+#===============================================================================
+set(SOURCES_LIST
+    ${CMAKE_CURRENT_SOURCE_DIR}/wifi/wifi_connect.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/wifi_tcp_sample.c
+)
+set(HEADER_LIST ${CMAKE_CURRENT_SOURCE_DIR}/wifi)
+
+set(SOURCES "${SOURCES}" ${SOURCES_LIST} PARENT_SCOPE)
+set(PUBLIC_HEADER "${PUBLIC_HEADER}" ${HEADER_LIST} PARENT_SCOPE)

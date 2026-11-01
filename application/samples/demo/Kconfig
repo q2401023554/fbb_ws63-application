@@ -1,0 +1,110 @@
+#===============================================================================
+# @brief    Kconfig file.
+# Copyright (c) HiSilicon (Shanghai) Technologies Co., Ltd. 2023-2023. All rights reserved.
+#===============================================================================
+config SAMPLE_SUPPORT_HELLO
+    bool
+    prompt "Support helloSample."
+    default n
+    depends on ENABLE_DEMO_SAMPLE
+    help
+        This option means support Hello Sample.
+
+if SAMPLE_SUPPORT_HELLOWORLD
+menu "Hello Sample Configuration"
+    osource "application/samples/peripheral/hello/Kconfig"
+endmenu
+endif
+
+config SAMPLE_SUPPORT_LED
+    bool
+    prompt "Support LED Sample."
+    default n
+    depends on ENABLE_DEMO_SAMPLE
+    help
+        This option means support LED Sample (auto RGB flash at boot, P0/P6/P9).
+        NOTE: shares P0/P6/P9 with LED2 Sample, enable only one of them.
+
+config SAMPLE_SUPPORT_LED2
+    bool
+    prompt "Support LED2 Sample."
+    default n
+    depends on ENABLE_DEMO_SAMPLE
+    help
+        This option means support LED2 Sample (P0/P6/P9 blink).
+		
+config SAMPLE_SUPPORT_UART
+    bool
+    prompt "Support UART Sample."
+    default n
+    depends on ENABLE_DEMO_SAMPLE
+    help
+        This option means support UART Sample.
+
+config SAMPLE_SUPPORT_WIFI_AP
+    bool
+    prompt "Support WIFI AP Sample."
+    default n
+    depends on ENABLE_DEMO_SAMPLE
+    help
+        This option means support WIFI SoftAP Sample (SSID: TheZengTest).
+
+config SAMPLE_SUPPORT_WIFI_STA
+    bool
+    prompt "Support WIFI STA Sample."
+    default n
+    depends on ENABLE_DEMO_SAMPLE
+    help
+        This option means support WIFI STA Sample (scan and connect to AP, get IP via DHCP).
+
+config SAMPLE_SUPPORT_UDP
+    bool
+    prompt "Support UDP Sample."
+    default n
+    depends on ENABLE_DEMO_SAMPLE
+    help
+        This option means support WIFI UDP Sample (STA connect, create UDP client, send/recv data).
+
+config SAMPLE_SUPPORT_WIFI_TCP
+    bool
+    prompt "Support WIFI TCP Sample."
+    default n
+    depends on ENABLE_DEMO_SAMPLE
+    help
+        This option means support WIFI TCP Sample (STA connect, create TCP client, connect to server, send/recv data).
+
+config SAMPLE_SUPPORT_WIFI_MQTT
+    bool
+    prompt "Support WIFI MQTT Sample."
+    default n
+    depends on ENABLE_DEMO_SAMPLE
+    help
+        This option means support WIFI MQTT Sample (STA connect, create MQTT client, subscribe/pubish via local EMQX broker).
+
+config SAMPLE_SUPPORT_WIFI_SENSOR_MQTT
+    bool
+    prompt "Support WIFI Sensor MQTT Sample."
+    default n
+    depends on ENABLE_DEMO_SAMPLE
+    help
+        This option means support WIFI Sensor MQTT Sample (collect AHT20 temp/humi + BH1750 light via I2C1, upload to EMQX via MQTT).
+
+config SAMPLE_SUPPORT_WEATHER_STATION
+    bool
+    prompt "Support Weather Station Sample."
+    default n
+    depends on ENABLE_DEMO_SAMPLE
+    help
+        This option means support Desktop Smart Weather Station Sample
+        (DHT11 + TM1637 display + WiFi HTTP weather compare + MQTT report).
+        NOTE: uses GPIO12/13/14/10, disable other samples that share these pins.
+
+config SAMPLE_SUPPORT_WIFI_CTRL_MQTT
+    bool
+    prompt "Support WIFI Ctrl MQTT Sample."
+    default n
+    depends on ENABLE_DEMO_SAMPLE
+    help
+        This option means support WIFI Ctrl MQTT Sample (MQTT client receives commands
+        from MQTTX on subTopic, controls external LED on GPIO10 and TM1637 segment
+        display on GPIO13/GPIO14).

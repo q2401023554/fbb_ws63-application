@@ -1,0 +1,23 @@
+# 编译产物与固件
+*.bin
+*.elf
+*.map
+*.lst
+*.asm
+*.o
+*.a
+*.su
+output/
+analyzerJson/
+
+# 编译中间件
+build/
+out/
+
+# 编辑器 / IDE
+.vscode/
+.idea/
+
+# 系统
+.DS_Store
+Thumbs.db
